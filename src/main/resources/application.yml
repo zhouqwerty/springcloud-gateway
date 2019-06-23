@@ -1,0 +1,74 @@
+server:
+  port: 5080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always
+eureka:
+  client:
+    service-url:
+     defaultZone: http://localhost:8085/eureka/
+spring:
+  application:
+    name: spring-cloud-gateway
+  redis:
+    host: localhost
+    password:
+    port: 6379
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+      - id: pro
+        uri: lb://spring-boot-producer
+        filters:
+        - StripPrefix=1
+        - name: Retry
+          args:
+            retries: 3
+            statuses: BAD_GATEWAY
+#        - Hystrix=myCommandName
+        - name: Hystrix
+          args:
+#           这里名字无所谓，自定义
+            name: fallbackcmd2
+            fallbackUri: forward:/fallback
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 10
+            redis-rate-limiter.burstCapacity: 20
+            key-resolver: "#{@ipKeyResolver}"
+        predicates:
+        - Path=/pro/**
+      - id: con
+        uri: lb://spring-boot-consumer
+        filters:
+        - StripPrefix=1
+        predicates:
+        - Path=/con/**
+      - id: pro1
+        uri: lb://spring-boot-producer
+        filters:
+        - AddRequestParameter=test,123
+        predicates:
+#        - Path=/test
+#        - After=2018-09-20T06:06:06+08:00[Asia/Shanghai]
+#        - Before=2019-09-20T06:06:06+08:00[Asia/Shanghai]
+#        - Between=2019-06-26T06:06:06+08:00[Asia/Shanghai],2019-06-29T06:06:06+08:00[Asia/Shanghai]
+#        - Cookie=testCookie,\d+
+#        - Header=X-Request-Id,\d+
+#        - Host=test.**
+#        - Method=GET
+#          /test/* 可以匹配到 /test/   /test/{path}  匹配不到 /test/
+        - Path=/test/**
+#        - Query=test
+#        - RemoteAddr=192.168.0.104/0
+#logging:
+#  level:
+#    org.springframework.cloud.gateway: debug
